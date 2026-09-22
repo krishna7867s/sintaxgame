@@ -17,7 +17,7 @@ export function HeaderHUD() {
       <div className="hud-inner">
         <Link to="/" className="hud-logo" title="SYNTAX PANIC">
           <img
-            src="/images/syntax_panic_logo.png"
+            src="/images/logo_nuevo.png"
             alt="SYNTAX PANIC"
             className="hud-logo-img"
             onError={(e) => {

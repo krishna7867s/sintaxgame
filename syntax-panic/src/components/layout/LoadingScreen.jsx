@@ -10,11 +10,10 @@ export function LoadingScreen({ done }) {
   return (
     <div className={`loading-screen${done ? ' loading-screen--done' : ''}`}>
       <img
-        src="/images/syntax_panic_logo.png"
+        src="/images/logo_animado.svg"
         alt="SYNTAX PANIC logo"
         className="loading-logo"
-        width={120}
-        height={120}
+        style={{ animation: 'none', width: '200px', height: 'auto' }}
         onError={(e) => {
           e.currentTarget.style.display = 'none';
         }}
