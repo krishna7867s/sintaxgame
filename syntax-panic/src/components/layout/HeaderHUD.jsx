@@ -24,9 +24,6 @@ export function HeaderHUD() {
               e.currentTarget.style.visibility = 'hidden';
             }}
           />
-          <span className="hud-title">
-            SYNTAX <span className="text-cyan">PANIC</span>
-          </span>
           <MetaBadge tone="cyan">SYS: ROM v1.4</MetaBadge>
         </Link>
 

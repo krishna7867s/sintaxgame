@@ -32,31 +32,36 @@ const NOTE_FREQ = {
   A5: 880,
 };
 
+// ─── ESCALA & ACORDES SYNTHWAVE ────────────────────────────────────────────
 const CHORDS = [
+  // Am  — "Night Drive"
   {
-    bass: ['E2', 'E2', 'B2', 'E2'],
-    arp: ['E3', 'G3', 'B3', 'E4', 'B3', 'G3', 'E4', 'B3', 'G3', 'E3', 'B3', 'G3', 'E4', 'G3', 'B3', 'E3'],
-    lead: ['E4', null, 'G4', null, 'B4', null, 'E5', null, 'G5', null, 'B4', null, 'E5', null, 'G4', null],
+    bass: ['A1', 'A1', 'E2', 'A1'],
+    arp:  ['A3','C4','E4','A4', 'G4','E4','C4','A3', 'E4','A4','C5','E5', 'A4','E4','C4','A3'],
+    lead: ['E4',null,'A4',null, 'C5',null,'E5',null, 'G5',null,'E5',null, 'C5',null,'A4',null],
   },
+  // F   — "Neon Blvd"
   {
-    bass: ['C3', 'C3', 'G2', 'C3'],
-    arp: ['C4', 'E4', 'G4', 'C5', 'G4', 'E4', 'C5', 'G4', 'C4', 'E4', 'G4', 'C5', 'E5', 'G4', 'G5', 'C4'],
-    lead: ['G4', null, 'C5', null, 'E5', null, 'G5', null, 'E5', null, 'C5', null, 'G5', null, 'E5', null],
+    bass: ['F2','F2','C3','F2'],
+    arp:  ['F3','A3','C4','F4', 'E4','C4','A3','F3', 'C4','F4','A4','C5', 'F4','C4','A3','F3'],
+    lead: ['C4',null,'F4',null, 'A4',null,'C5',null, 'F5',null,'C5',null, 'A4',null,'F4',null],
   },
+  // G   — "Rooftop Run"
   {
-    bass: ['G2', 'G2', 'D3', 'G2'],
-    arp: ['G3', 'B3', 'D4', 'G4', 'B4', 'D4', 'G4', 'B4', 'D5', 'G4', 'D4', 'B3', 'G4', 'D4', 'B4', 'G3'],
-    lead: ['B3', null, 'D4', null, 'G4', null, 'B4', null, 'D5', null, 'B4', null, 'G4', null, 'D5', null],
+    bass: ['G2','G2','D3','G2'],
+    arp:  ['G3','B3','D4','G4', 'Fs4','D4','B3','G3', 'D4','G4','B4','D5', 'G4','D4','B3','G3'],
+    lead: ['B4',null,'D5',null, 'G5',null,'B4',null, 'D5',null,'G5',null, 'Fs4',null,'D5',null],
   },
+  // E   — "Code Rush"
   {
-    bass: ['D2', 'D2', 'A2', 'D2'],
-    arp: ['D4', 'Fs4', 'A4', 'D5', 'A4', 'Fs4', 'D5', 'A4', 'Fs4', 'D4', 'A4', 'Fs4', 'D5', 'Fs4', 'A4', 'D4'],
-    lead: ['A4', null, 'Fs4', null, 'D5', null, 'A4', null, 'D5', null, 'A4', null, 'Fs4', null, 'D5', null],
+    bass: ['E2','E2','B2','E2'],
+    arp:  ['E3','G3','B3','E4', 'D4','B3','G3','E3', 'B3','E4','G4','B4', 'E4','B3','G3','E3'],
+    lead: ['G4',null,'B4',null, 'E5',null,'G5',null, 'B4',null,'E5',null, 'G4',null,'B4',null],
   },
 ];
 
-const BPM = 150;
-const STEP_DUR = 60 / BPM / 4;
+const BPM       = 175;          // más veloz y energético
+const STEP_DUR  = 60 / BPM / 4;
 
 function makeNoiseBuffer(ctx, seconds = 0.2, gain = 0.5) {
   const length = Math.floor(ctx.sampleRate * seconds);
@@ -147,59 +152,89 @@ export function useAudio() {
   const scheduleStep = useCallback((ctx, stepIndex, when) => {
     const dest = musicGainRef.current;
     if (!dest) return;
-    const bar = Math.floor(stepIndex / 16) % 4;
-    const step = stepIndex % 16;
+    const bar   = Math.floor(stepIndex / 16) % 4;
+    const step  = stepIndex % 16;
     const chord = CHORDS[bar];
-    const t = when - ctx.currentTime;
+    const t     = when - ctx.currentTime;
 
-    const bassNote = NOTE_FREQ[chord.bass[Math.floor(step / 4)]];
-    tone(ctx, dest, { type: 'square', freq: bassNote, freqEnd: bassNote * 0.99, dur: 0.24, vol: 0.16, slide: t });
+    // ── BAJO con slide synthwave ──────────────────────────────────────────
+    const bassF = NOTE_FREQ[chord.bass[Math.floor(step / 4)]];
+    const bassNext = NOTE_FREQ[chord.bass[Math.min(3, Math.floor(step / 4) + 1)]];
+    tone(ctx, dest, {
+      type: 'sawtooth', freq: bassF, freqEnd: bassNext * 0.998,
+      dur: 0.28, vol: 0.18, slide: t, attack: 0.004,
+    });
+    // sub-bass punch
+    tone(ctx, dest, {
+      type: 'sine', freq: bassF * 0.5, freqEnd: bassF * 0.48,
+      dur: 0.22, vol: 0.22, slide: t, attack: 0.002,
+    });
 
-    const arpNote = NOTE_FREQ[chord.arp[step]];
-    tone(ctx, dest, { type: 'triangle', freq: arpNote, dur: 0.1, vol: 0.11, slide: t, attack: 0.002 });
+    // ── ARPEGIO (lead pad tipo DX7) ───────────────────────────────────────
+    const arpF = NOTE_FREQ[chord.arp[step]];
+    tone(ctx, dest, { type: 'triangle', freq: arpF, dur: STEP_DUR * 0.85, vol: 0.13, slide: t, attack: 0.003 });
+    // capa sawth para el brillo synthwave
+    tone(ctx, dest, { type: 'sawtooth', freq: arpF * 1.003, dur: STEP_DUR * 0.8, vol: 0.04, slide: t, attack: 0.005 });
 
+    // ── MELODÍA LEAD ─────────────────────────────────────────────────────
     const leadNote = chord.lead[step];
     if (leadNote) {
-      tone(ctx, dest, { type: 'square', freq: NOTE_FREQ[leadNote], dur: 0.09, vol: 0.07, slide: t, attack: 0.002 });
+      const lf = NOTE_FREQ[leadNote];
+      tone(ctx, dest, { type: 'square', freq: lf, freqEnd: lf * 0.997, dur: STEP_DUR * 1.8, vol: 0.09, slide: t, attack: 0.004 });
+      // vibrato: segunda capa levemente desafinada
+      tone(ctx, dest, { type: 'square', freq: lf * 1.007, dur: STEP_DUR * 1.8, vol: 0.05, slide: t + 0.002, attack: 0.005 });
     }
 
-    if (step === 0 || step === 8) {
-      const root = NOTE_FREQ[chord.bass[0]];
-      tone(ctx, dest, { type: 'sawtooth', freq: root, freqEnd: root * 0.99, dur: 0.28, vol: 0.06, slide: t, attack: 0.02 });
-    }
-
+    // ── CHORD PAD cada 4 pasos ────────────────────────────────────────────
     if (step % 4 === 0) {
-      tone(ctx, dest, { type: 'sine', freq: 150, freqEnd: 42, dur: 0.16, vol: 0.55, slide: t, attack: 0.001 });
+      const root = NOTE_FREQ[chord.bass[0]];
+      [1, 1.26, 1.498].forEach((ratio, ri) => {
+        tone(ctx, dest, {
+          type: 'sawtooth', freq: root * ratio,
+          dur: STEP_DUR * 4, vol: 0.028, slide: t + ri * 0.002, attack: 0.06,
+        });
+      });
     }
-    if (step % 2 === 0) {
-      const src = ctx.createBufferSource();
-      src.buffer = noiseRef.current;
-      const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass';
-      hp.frequency.value = 6500;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.12, when);
-      g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
-      src.connect(hp);
-      hp.connect(g);
-      g.connect(dest);
-      src.start(when);
-      src.stop(when + 0.06);
+
+    // ── BATERÍA ───────────────────────────────────────────────────────────
+    // Kick (paso 0, 8)
+    if (step === 0 || step === 8) {
+      tone(ctx, dest, { type: 'sine', freq: 160, freqEnd: 38, dur: 0.18, vol: 0.65, slide: t, attack: 0.001 });
+      // click de ataque
+      tone(ctx, dest, { type: 'square', freq: 220, freqEnd: 55, dur: 0.04, vol: 0.22, slide: t, attack: 0.001 });
     }
+    // Snare / clap (paso 4, 12)
     if (step === 4 || step === 12) {
       const src = ctx.createBufferSource();
       src.buffer = noiseRef.current;
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = 1800;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1600; bp.Q.value = 0.8;
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.16, when);
-      g.gain.exponentialRampToValueAtTime(0.0001, when + 0.12);
-      src.connect(bp);
-      bp.connect(g);
-      g.connect(dest);
-      src.start(when);
-      src.stop(when + 0.13);
+      g.gain.setValueAtTime(0.28, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.14);
+      src.connect(bp); bp.connect(g); g.connect(dest);
+      src.start(when); src.stop(when + 0.15);
+      // cuerpo del snare
+      tone(ctx, dest, { type: 'sine', freq: 210, freqEnd: 140, dur: 0.1, vol: 0.16, slide: t, attack: 0.001 });
+    }
+    // Hi-hat abierto (pasos pares)
+    if (step % 2 === 0) {
+      const src = ctx.createBufferSource();
+      src.buffer = noiseRef.current;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000;
+      const g = ctx.createGain();
+      const vol = step % 4 === 0 ? 0.10 : 0.06;
+      g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + (step % 4 === 0 ? 0.06 : 0.04));
+      src.connect(hp); hp.connect(g); g.connect(dest);
+      src.start(when); src.stop(when + 0.07);
+    }
+    // Hi-hat cerrado off-beat (pasos impares)
+    if (step % 2 === 1) {
+      const src = ctx.createBufferSource();
+      src.buffer = noiseRef.current;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 9000;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.04, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.025);
+      src.connect(hp); hp.connect(g); g.connect(dest);
+      src.start(when); src.stop(when + 0.03);
     }
   }, []);
 

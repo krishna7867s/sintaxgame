@@ -674,11 +674,10 @@ textarea {
 }
 
 .hud-logo-img {
-  width: 34px;
-  height: 34px;
+  width: 120px;
+  height: auto;
   image-rendering: pixelated;
-  border: 2px solid var(--magenta);
-  box-shadow: 2px 2px 0 var(--magenta);
+  filter: drop-shadow(0 0 8px #ff2e93);
 }
 
 .hud-title {

@@ -1,327 +1,285 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { CANVAS_W, CANVAS_H, RENDER_W, RENDER_H, GROUND_Y, PLAYER_X, PLAYER_H, PLAYER_DUCK_H, ATTACK_COOLDOWN } from '../../hooks/useArcadeGame';
+import {
+  CANVAS_W, CANVAS_H, RENDER_W, RENDER_H, GROUND_Y,
+  PLAYER_X, ATTACK_COOLDOWN
+} from '../../hooks/useArcadeGame';
 import { MetaBadge } from '../ui/MetaBadge';
 import { HpHearts } from '../ui/Bits';
 
-// Spritesheet layout:
-// Personajes: Fila 0 = 6 frames de carrera (128px cada uno), Fila 1 = 2 frames de acción (128px cada uno)
-//   - media_1790111150895.jpg = Jaeyoung (sudadera ROJA) -> jaeyoung_spritesheet.png
-//   - media_1790111150836.jpg = Sangwoo (gorra NEGRA)   -> sangwoo_spritesheet.png
-// Items:  Fila 0=Corazones, Fila 1=Latas, Fila 2=RAMs, Fila 3=Bugs/Monedas, Fila 4=Gato
+// ─── SPRITESHEET LAYOUT ──────────────────────────────────────────────────────
+// Las imágenes son ~1034×512 px
+// Fila 0 (y=0): 6 frames de carrera, cada uno ~172×256
+// Fila 1 (y=256): 2 frames de acción, cada uno ~517×256
+// P1 (default) = Jaeyoung (sudadera ROJA)  → jaeyoung_spritesheet.png
+// P2           = Sangwoo  (gorra NEGRA)    → sangwoo_spritesheet.png
+const SRUN_W   = 172;   // ancho de cada frame de carrera
+const SRUN_H   = 256;   // alto de cada frame de carrera
+const SRUN_Y   = 0;     // y de inicio fila carrera
+const SACT_W   = 517;   // ancho de cada frame de acción
+const SACT_H   = 256;   // alto de cada frame de acción
+const SACT_Y   = 256;   // y de inicio fila acciones
 
-const SPRITE_FRAME_W = 170;  // ancho real de cada frame: imagen ~1024px / 6 cols ≈ 170px
-const SPRITE_FRAME_H = 180;  // alto de fila de carrera aprox
-const SPRITE_ACTION_Y = 180; // y-offset para fila de acciones
-const SPRITE_ACTION_W = 256; // cada frame de acción ocupa ~mitad de la imagen
-const SPRITE_ACTION_H = 220;
+// Destino en canvas (escalado cómodo)
+const DST_W  = 80;
+const DST_H  = 96;
 
+// ─── DIBUJO DE LA ESCENA ─────────────────────────────────────────────────────
 function drawScene(ctx, s, t, frames, operatorId) {
-  const ms = performance.now();
-  const currentFrame = Math.floor(ms / 90) % 6;
+  const runFrame  = Math.floor(t / 90) % 6;   // ciclo 0‑5 cada 90 ms
 
   ctx.save();
   ctx.scale(RENDER_W / CANVAS_W, RENDER_H / CANVAS_H);
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.imageSmoothingEnabled = false;
 
-  // Fondo Degradado Synthwave
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
-  bgGrad.addColorStop(0, '#0d0520');
-  bgGrad.addColorStop(0.5, '#3b1060');
-  bgGrad.addColorStop(1, '#c0186a');
-  ctx.fillStyle = bgGrad;
+  // ── FONDO SYNTHWAVE ──────────────────────────────────────────────────────
+  const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+  bg.addColorStop(0,   '#0b0318');
+  bg.addColorStop(0.5, '#2e0a56');
+  bg.addColorStop(1,   '#9b1459');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Estrellas estáticas
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  for (let i = 0; i < 50; i++) {
-    const stx = ((i * 293) % CANVAS_W);
-    const sty = ((i * 137) % 160);
-    const blink = Math.sin(t * 0.003 + i * 1.7) > 0.3 ? 2 : 1;
-    ctx.fillRect(stx, sty, blink, blink);
+  // Estrellas parpadeantes
+  for (let i = 0; i < 55; i++) {
+    const sx = (i * 283) % CANVAS_W;
+    const sy = (i * 119) % 150;
+    const sz = Math.sin(t * 0.002 + i * 2.1) > 0.4 ? 2 : 1;
+    ctx.fillStyle = i % 4 === 0 ? 'rgba(0,240,255,0.7)' : 'rgba(255,255,255,0.45)';
+    ctx.fillRect(sx, sy, sz, sz);
   }
 
-  // Luna
-  const moonX = CANVAS_W - 130 - ((s.dist * 0.03) % (CANVAS_W + 260));
+  // Luna con halo neon
+  const moonX = ((CANVAS_W + 200) - (s.dist * 0.025) % (CANVAS_W + 200));
+  ctx.fillStyle = 'rgba(255,249,214,0.07)';
+  ctx.beginPath(); ctx.arc(moonX, 72, 62, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#fff9d6';
-  ctx.beginPath();
-  ctx.arc(moonX, 70, 42, 0, Math.PI * 2);
-  ctx.fill();
-  // Brillo neon de la luna
-  ctx.fillStyle = 'rgba(255,249,214,0.08)';
-  ctx.beginPath();
-  ctx.arc(moonX, 70, 60, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.beginPath(); ctx.arc(moonX, 72, 44, 0, Math.PI * 2); ctx.fill();
 
-  // Edificios Parallax (capa lenta)
-  const offBuildings = (s.dist * 0.35) % CANVAS_W;
-  const buildingColors = ['#1a0b3d', '#1e0e44', '#150830'];
-  for (let bx = -CANVAS_W; bx < CANVAS_W * 2; bx += CANVAS_W) {
-    const baseX = bx - offBuildings;
-    // Ventanas encendidas aleatorias
-    [[baseX + 50, 100, 70, 200], [baseX + 160, 70, 110, 230], [baseX + 320, 90, 90, 210],
-     [baseX + 480, 110, 80, 190], [baseX + 620, 60, 100, 240], [baseX + 800, 95, 75, 205]].forEach(([bxp, by, bw, bh], bi) => {
-      ctx.fillStyle = buildingColors[bi % 3];
-      ctx.fillRect(bxp, by, bw, bh);
-      // Ventanas
-      ctx.fillStyle = Math.random() < 0.005 ? '#ff2e93' : 'rgba(0,240,255,0.15)';
-      for (let wy = by + 10; wy < by + bh - 20; wy += 18) {
-        for (let wx = bxp + 8; wx < bxp + bw - 8; wx += 14) {
-          if ((wx + wy) % 3 !== 0) ctx.fillRect(wx, wy, 8, 10);
+  // ── EDIFICIOS PARALLAX (capa lenta 0.3×) ─────────────────────────────────
+  const offB = (s.dist * 0.3) % CANVAS_W;
+  const bldgs = [
+    [55, 95, 68, 205], [160, 68, 115, 232], [325, 88, 88, 212],
+    [478, 108, 82, 192], [618, 58, 102, 242], [798, 92, 78, 208],
+  ];
+  const bldgCols = ['#14093a', '#1b0d44', '#0e0630'];
+  for (let rep = -CANVAS_W; rep < CANVAS_W * 2; rep += CANVAS_W) {
+    bldgs.forEach(([bx, by, bw, bh], bi) => {
+      const rx = rep + bx - offB;
+      ctx.fillStyle = bldgCols[bi % 3];
+      ctx.fillRect(rx, by, bw, bh);
+      // ventanas
+      for (let wy = by + 8; wy < by + bh - 16; wy += 16) {
+        for (let wx = rx + 6; wx < rx + bw - 6; wx += 12) {
+          if ((wx + wy) % 5 !== 0) {
+            ctx.fillStyle = Math.sin(t * 0.001 + wx + wy) > 0.98
+              ? '#ff2e93' : 'rgba(0,240,255,0.12)';
+            ctx.fillRect(wx, wy, 7, 9);
+          }
         }
       }
     });
   }
 
-  // Muro parallax medio
-  const offWall = (s.dist * 0.8) % CANVAS_W;
-  ctx.fillStyle = '#2e1520';
-  ctx.fillRect(0, 238, CANVAS_W, 65);
-  // Línea neon techo muro
+  // ── MURO (capa media 0.7×) ────────────────────────────────────────────────
+  const offW = (s.dist * 0.7) % CANVAS_W;
+  ctx.fillStyle = '#280e18';
+  ctx.fillRect(0, 240, CANVAS_W, 62);
   ctx.fillStyle = '#ff2e93';
-  ctx.fillRect(0, 238, CANVAS_W, 2);
+  ctx.fillRect(0, 240, CANVAS_W, 2);          // línea neon techo
+  ctx.fillStyle = 'rgba(0,240,255,0.18)';
+  ctx.fillRect(0, 300, CANVAS_W, 1);          // línea neon piso
 
-  // Decoraciones sobre el muro (se mueven con él)
-  for (let bx = -CANVAS_W; bx < CANVAS_W * 2; bx += CANVAS_W) {
-    const baseX = bx - offWall;
-    // Árboles pixel art
-    ctx.fillStyle = '#0d2e1e';
-    ctx.fillRect(baseX + 55, 200, 22, 38);
-    ctx.fillRect(baseX + 42, 185, 48, 20);
-    ctx.fillStyle = '#0f3d27';
-    ctx.fillRect(baseX + 390, 200, 22, 38);
-    ctx.fillRect(baseX + 377, 185, 48, 20);
+  for (let rep = -CANVAS_W; rep < CANVAS_W * 2; rep += CANVAS_W) {
+    const bx = rep - offW;
+    // Árboles pixel
+    ctx.fillStyle = '#0b2a1a';
+    ctx.fillRect(bx + 50, 208, 20, 34); ctx.fillRect(bx + 38, 195, 44, 18);
+    ctx.fillRect(bx + 390, 208, 20, 34); ctx.fillRect(bx + 378, 195, 44, 18);
     // Vending machines
-    ctx.fillStyle = '#8b0000';
-    ctx.fillRect(baseX + 500, 205, 30, 55);
-    ctx.fillStyle = '#cc0000';
-    ctx.fillRect(baseX + 503, 215, 24, 20);
-    ctx.fillStyle = '#00b4d8';
-    ctx.fillRect(baseX + 570, 205, 30, 55);
-    ctx.fillStyle = '#48cae4';
-    ctx.fillRect(baseX + 573, 215, 24, 20);
+    ctx.fillStyle = '#7a0000';
+    ctx.fillRect(bx + 502, 208, 28, 52);
+    ctx.fillStyle = '#c40000';
+    ctx.fillRect(bx + 505, 217, 22, 18);
+    ctx.fillStyle = '#005f87';
+    ctx.fillRect(bx + 568, 208, 28, 52);
+    ctx.fillStyle = '#00a8d8';
+    ctx.fillRect(bx + 571, 217, 22, 18);
     // Gato pixel
     ctx.fillStyle = '#111';
-    ctx.fillRect(baseX + 680, 225, 20, 14);
-    ctx.fillRect(baseX + 679, 219, 5, 7);
-    ctx.fillRect(baseX + 694, 219, 5, 7);
-    ctx.fillStyle = '#ff0044';
-    ctx.fillRect(baseX + 682, 230, 8, 3);
+    ctx.fillRect(bx + 682, 228, 18, 12);
+    ctx.fillRect(bx + 681, 222, 4, 7);
+    ctx.fillRect(bx + 695, 222, 4, 7);
+    ctx.fillStyle = '#ff004c'; ctx.fillRect(bx + 683, 232, 7, 3);
   }
 
-  // Suelo con rayas de velocidad (parallax rápido)
-  ctx.fillStyle = '#3d0d22';
+  // ── SUELO (capa rápida 1.8×) ──────────────────────────────────────────────
+  ctx.fillStyle = '#380a1e';
   ctx.fillRect(0, 300, CANVAS_W, 60);
-  ctx.fillStyle = '#6a0dad';
-  ctx.fillRect(0, 300, CANVAS_W, 3);
-  // Rayas horizontales
-  const offFloor = (s.dist * 2) % 120;
-  for (let bx = -120; bx < CANVAS_W + 120; bx += 120) {
-    ctx.fillStyle = 'rgba(255,46,147,0.35)';
-    ctx.fillRect(bx - offFloor, 316, 60, 2);
+  const offF = (s.dist * 1.8) % 110;
+  for (let bx = -110; bx < CANVAS_W + 110; bx += 110) {
+    ctx.fillStyle = 'rgba(255,46,147,0.28)';
+    ctx.fillRect(bx - offF, 318, 55, 2);
   }
 
-  // Items (spritesheet 128x128 por frame)
-  const itemSrcW = 128;
-  const itemSrcH = 128;
-  const itemDstW = 42;
-  const itemDstH = 42;
-
-  // Obstáculos — usar globalCompositeOperation 'screen' para quitar fondo negro
+  // ── ÍTEMS/LOOT ────────────────────────────────────────────────────────────
+  const ISRC = 128; // cada sprite de item es 128×128
   ctx.globalCompositeOperation = 'screen';
   if (frames.items) {
+    // Obstáculos: row 3 = bugs/monedas, row 2 = RAM
     s.obstacles.forEach((o) => {
       const row = o.kind === 'ransomware' ? 3 : 2;
       const bob = o.kind === 'ransomware' ? Math.sin(o.phase * 2) * (o.floatAmp || 6) : 0;
-      ctx.drawImage(frames.items, 0, itemSrcH * row, itemSrcW, itemSrcH,
-        o.x - 6, o.y + bob - 8, itemDstW, itemDstH);
+      ctx.drawImage(frames.items,
+        0, ISRC * row, ISRC, ISRC,
+        o.x - 5, o.y + bob - 4, 44, 44);
     });
-  }
-  // Loot flotante
-  if (frames.items) {
+    // Loot flotante: row 0 = corazones, row 1 = latas
     s.loot.forEach((l) => {
       const row = l.value > 100 ? 0 : 1;
-      const bob = Math.abs(Math.sin(l.phase)) * 6;
-      ctx.drawImage(frames.items, 0, itemSrcH * row, itemSrcW, itemSrcH,
-        l.x - 10, l.y - 10 - bob, itemDstW, itemDstH);
+      const bob = Math.abs(Math.sin(l.phase)) * 7;
+      ctx.drawImage(frames.items,
+        0, ISRC * row, ISRC, ISRC,
+        l.x - 10, l.y - 8 - bob, 40, 40);
     });
   }
   ctx.globalCompositeOperation = 'source-over';
 
-  // Flash de golpe en obstáculo (renderizado en source-over)
+  // flash de impacto en obstáculo
   s.obstacles.forEach((o) => {
     if (o.flash > 0) {
-      ctx.fillStyle = `rgba(255,255,255,${o.flash * 3})`;
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(1, o.flash * 4)})`;
       ctx.fillRect(o.x, o.y, o.w, o.h);
     }
   });
 
-  // Partículas
+  // ── PARTÍCULAS ────────────────────────────────────────────────────────────
   s.particles.forEach((p) => {
     ctx.globalAlpha = Math.max(0, Math.min(1, p.life / 0.5));
-    ctx.fillStyle = p.color;
+    ctx.fillStyle   = p.color;
     ctx.fillRect(p.x, p.y, p.size, p.size);
   });
   ctx.globalAlpha = 1;
 
-  // ---- DIBUJAR JUGADOR con sprite ----
-  // Jaeyoung = P1 (sudadera ROJA) por defecto,  Sangwoo = P2 (gorra NEGRA)
-  // P1 = operatorId 'P1' → jaeyoung (rojo)
-  // P2 = operatorId 'P2' → sangwoo (negro)
+  // ── JUGADOR ───────────────────────────────────────────────────────────────
+  // P1 = Jaeyoung (rojo), P2 = Sangwoo (negro)
   const sprite = operatorId === 'P2' ? frames.sangwoo : frames.jaeyoung;
 
-  const playerDstW = 96;
-  const playerDstH = 96;
-  const px = PLAYER_X - 30;
-  const py = s.y - playerDstH + 8;
+  // Posición: pies del jugador están en s.y (GROUND_Y cuando está en el suelo)
+  // Dibujamos el sprite de DST_H px de alto, con los pies tocando s.y
+  const px  = PLAYER_X - 28;
+  const py  = s.y - DST_H;
 
-  // Decidir qué fila y qué columna del spritesheet usar
-  let srcX, srcY, srcW, srcH;
+  // Seleccionar frame del spritesheet
+  let srcX, srcY, srcW, srcH, dstW = DST_W, dstH = DST_H;
 
   if (s.attacking > 0) {
-    // Fila 2, frame 1 = Atacar/coger lata (columna 0)
-    srcX = 0;
-    srcY = SPRITE_ACTION_Y;
-    srcW = SPRITE_ACTION_W;
-    srcH = SPRITE_ACTION_H;
+    // Fila 1, frame 1 = atacar/agarrar lata
+    srcX = 0; srcY = SACT_Y; srcW = SACT_W; srcH = SACT_H;
+    dstW = 100; dstH = 90;
   } else if (s.comboT > 0 && s.time - s.comboT < 0.5) {
-    // Fila 2, frame 2 = Coger corazón (columna 1)
-    srcX = SPRITE_ACTION_W;
-    srcY = SPRITE_ACTION_Y;
-    srcW = SPRITE_ACTION_W;
-    srcH = SPRITE_ACTION_H;
-  } else if (!s.grounded) {
-    // Salto: frame 3 de la fila de carrera (en el aire, piernas extendidas)
-    srcX = SPRITE_FRAME_W * 3;
-    srcY = 0;
-    srcW = SPRITE_FRAME_W;
-    srcH = SPRITE_FRAME_H;
+    // Fila 1, frame 2 = coger corazón (reacción de colecta)
+    srcX = SACT_W; srcY = SACT_Y; srcW = SACT_W; srcH = SACT_H;
+    dstW = 100; dstH = 90;
   } else {
-    // Carrera normal: ciclo de frames 0-5
-    srcX = SPRITE_FRAME_W * currentFrame;
-    srcY = 0;
-    srcW = SPRITE_FRAME_W;
-    srcH = SPRITE_FRAME_H;
+    // Fila 0 = carrera (6 frames) — frame fijo en salto
+    const frame = s.grounded ? runFrame : 3;
+    srcX = SRUN_W * frame; srcY = SRUN_Y; srcW = SRUN_W; srcH = SRUN_H;
   }
 
   // Parpadeo de invencibilidad
-  if (s.invincible > 0 && Math.floor(s.time * 14) % 2 === 0) {
-    // skip draw = efecto de parpadeo
-  } else if (sprite) {
-    // 'screen' para eliminar el fondo negro del JPG
-    ctx.globalCompositeOperation = 'screen';
-    ctx.drawImage(sprite, srcX, srcY, srcW, srcH, px, py, playerDstW, playerDstH);
+  const blink = s.invincible > 0 && Math.floor(s.time * 14) % 2 === 0;
+  if (!blink && sprite) {
+    ctx.globalCompositeOperation = 'screen'; // elimina fondo negro del jpg
+    ctx.drawImage(sprite, srcX, srcY, srcW, srcH,
+      px, s.y - dstH, dstW, dstH);
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // Estela de espada al atacar
+  // Estela de ataque
   if (s.attacking > 0 && !s.duck) {
     const prog = 1 - s.attacking / ATTACK_COOLDOWN;
-    for (let i = 0; i < 8; i++) {
-      const ang = -0.5 - i * 0.18 + prog * 1.2;
-      const r = 28 + i * 5;
-      const ex = px + 80 + Math.cos(ang) * r;
-      const ey = py + 50 + Math.sin(ang) * r * 0.6;
+    for (let i = 0; i < 10; i++) {
+      const ang = -0.4 - i * 0.15 + prog * 1.3;
+      const r   = 25 + i * 6;
       ctx.fillStyle = i % 2 ? '#00f0ff' : '#ffffff';
-      ctx.fillRect(ex, ey, 4, 4);
+      ctx.fillRect(
+        px + 72 + Math.cos(ang) * r,
+        s.y - 55 + Math.sin(ang) * r * 0.55,
+        4, 4
+      );
     }
   }
 
   ctx.restore();
 }
 
-export default function ArcadeCanvas({ setDraw, canvasRef, hud, gameState, operatorId, onStart, onResume, onExit, onRanking, submitting }) {
+// ─── COMPONENTE ──────────────────────────────────────────────────────────────
+export default function ArcadeCanvas({
+  setDraw, canvasRef, hud, gameState,
+  operatorId, onStart, onResume, onExit, onRanking, submitting
+}) {
   const framesRef = useRef({});
 
   useEffect(() => {
     const frames = framesRef.current;
-    
-    const imgJaeyoung = new Image();
-    imgJaeyoung.src = '/images/sprites/jaeyoung_spritesheet.png';
-    imgJaeyoung.onload = () => { frames.jaeyoung = imgJaeyoung; };
-
-    const imgSangwoo = new Image();
-    imgSangwoo.src = '/images/sprites/sangwoo_spritesheet.png';
-    imgSangwoo.onload = () => { frames.sangwoo = imgSangwoo; };
-
-    const imgItems = new Image();
-    imgItems.src = '/images/sprites/items_spritesheet.png';
-    imgItems.onload = () => { frames.items = imgItems; };
-
-    return () => {
-      frames.jaeyoung = null;
-      frames.sangwoo = null;
-      frames.items = null;
+    const load = (key, src) => {
+      const img = new Image();
+      img.src = src;
+      img.onload = () => { frames[key] = img; };
     };
+    load('jaeyoung', '/images/sprites/jaeyoung_spritesheet.png');
+    load('sangwoo',  '/images/sprites/sangwoo_spritesheet.png');
+    load('items',    '/images/sprites/items_spritesheet.png');
+    return () => { frames.jaeyoung = frames.sangwoo = frames.items = null; };
   }, []);
 
   useEffect(() => {
-    // Delegamos el ciclo `requestAnimationFrame` al game loop en useArcadeGame,
-    // que llamará a setDraw(ctx, s, t)
-    setDraw((ctx, s, t) => {
-      drawScene(ctx, s, t, framesRef.current, operatorId);
-    });
+    setDraw((ctx, s, t) => drawScene(ctx, s, t, framesRef.current, operatorId));
   }, [setDraw, operatorId]);
 
   const overlay = useMemo(() => {
-    if (gameState === 'IDLE') {
-      return {
-        title: 'SISTEMA LISTO // CAMPUS NIGHT RUN',
-        tone: 'cyan',
-        body: (
-          <div className="keycaps" style={{ justifyContent: 'center' }}>
-            <span className="key key--cyan">SPACE</span> SALTAR
-            <span className="key key--magenta">F</span> ATACAR MONSTRUO
-            <span className="key key--amber">ESC</span> PAUSA
-          </div>
-        ),
-        action: (
-          <button className="px-btn px-btn--primary px-btn--lg" onClick={onStart}>
-            ▶ INICIAR RUN
-          </button>
-        ),
-      };
-    }
-    if (gameState === 'PAUSED') {
-      return {
-        title: 'PAUSA // ESC',
-        tone: 'amber',
-        body: <div className="mono tiny text-dim">El loop del runner queda congelado.</div>,
-        action: (
-          <div className="row gap-1" style={{ justifyContent: 'center' }}>
-            <button className="px-btn px-btn--primary" onClick={onResume}>REANUDAR</button>
-            <button className="px-btn" onClick={onExit}>SALIR</button>
-          </div>
-        ),
-      };
-    }
-    if (gameState === 'GAMEOVER') {
-      return {
-        title: 'GAME OVER // MEMORY SEGFAULT',
-        tone: 'danger',
-        body: (
-          <div className="mono tiny">
-            PTS FINAL: <span className="text-amber">{hud?.score?.toLocaleString('en-US') || 0}</span> · KILLS:{' '}
-            <span className="text-green">{hud?.bugs || 0}</span>
-          </div>
-        ),
-        action: null,
-      };
-    }
-    if (gameState === 'VICTORY') {
-      return {
-        title: 'RANK ACK // VICTORIA',
-        tone: 'green',
-        body: (
-          <div className="mono tiny">
-            PTS: <span className="text-amber">{hud?.score?.toLocaleString('en-US') || 0}</span> (+5000 BONUS) · KILLS:{' '}
-            <span className="text-green">{hud?.bugs || 0}</span>
-          </div>
-        ),
-        action: (
-          <span className="mono tiny text-green">{submitting ? 'POST /scores + N8N EN CURSO...' : 'PUNTAJE REGISTRADO AUTOMÁTICAMENTE'}</span>
-        ),
-      };
-    }
+    if (gameState === 'IDLE') return {
+      title: 'SISTEMA LISTO // CAMPUS NIGHT RUN', tone: 'cyan',
+      body: (
+        <div className="keycaps" style={{ justifyContent: 'center' }}>
+          <span className="key key--cyan">SPACE</span> SALTAR &nbsp;
+          <span className="key key--magenta">F</span> ATACAR &nbsp;
+          <span className="key key--amber">ESC</span> PAUSA
+        </div>
+      ),
+      action: <button className="px-btn px-btn--primary px-btn--lg" onClick={onStart}>▶ INICIAR RUN</button>,
+    };
+    if (gameState === 'PAUSED') return {
+      title: 'PAUSA // ESC', tone: 'amber',
+      body: <div className="mono tiny text-dim">Loop congelado — física en buffer.</div>,
+      action: (
+        <div className="row gap-1" style={{ justifyContent: 'center' }}>
+          <button className="px-btn px-btn--primary" onClick={onResume}>REANUDAR</button>
+          <button className="px-btn" onClick={onExit}>SALIR</button>
+        </div>
+      ),
+    };
+    if (gameState === 'GAMEOVER') return {
+      title: 'GAME OVER // MEMORY SEGFAULT', tone: 'danger',
+      body: (
+        <div className="mono tiny">
+          PTS: <span className="text-amber">{hud?.score?.toLocaleString('en-US') || 0}</span> ·
+          KILLS: <span className="text-green">{hud?.bugs || 0}</span>
+        </div>
+      ),
+      action: null,
+    };
+    if (gameState === 'VICTORY') return {
+      title: 'RANK ACK // VICTORIA', tone: 'green',
+      body: (
+        <div className="mono tiny">
+          PTS: <span className="text-amber">{hud?.score?.toLocaleString('en-US') || 0}</span> (+5000) ·
+          KILLS: <span className="text-green">{hud?.bugs || 0}</span>
+        </div>
+      ),
+      action: <span className="mono tiny text-green">{submitting ? 'ENVIANDO...' : 'PUNTAJE REGISTRADO ✓'}</span>,
+    };
     return null;
   }, [gameState, hud, onStart, onResume, onExit, submitting]);
 
@@ -337,35 +295,29 @@ export default function ArcadeCanvas({ setDraw, canvasRef, hud, gameState, opera
           <div className="row gap-1 wrap" style={{ pointerEvents: 'none' }}>
             <span className="hud-block hud-block--magenta">PTS {hud.score.toLocaleString('en-US')}</span>
             <span className="hud-block">KILLS {String(hud.bugs).padStart(3, '0')}</span>
-            <span className="hud-block hud-block--cyan">
-              {mm}:{ss}
-            </span>
+            <span className="hud-block hud-block--cyan">{mm}:{ss}</span>
             <span className="hud-block">DIST {Math.floor(hud.dist)}m</span>
           </div>
           <div className="row gap-1 wrap" style={{ pointerEvents: 'none' }}>
-            <span className="hud-block">
-              HP <HpHearts hp={hud.lives} />
-            </span>
-            {hud.combo > 1 && <span className="hud-block" style={{ borderColor: 'var(--amber)', color: 'var(--amber)' }}>COMBO×{hud.combo}</span>}
-            <span className="hud-block">
-              VEL <span className="text-cyan">{Math.floor(hud.speed)}</span>
-            </span>
+            <span className="hud-block">HP <HpHearts hp={hud.lives} /></span>
+            {hud.combo > 1 && (
+              <span className="hud-block" style={{ borderColor: 'var(--amber)', color: 'var(--amber)' }}>
+                COMBO×{hud.combo}
+              </span>
+            )}
+            <span className="hud-block">VEL <span className="text-cyan">{Math.floor(hud.speed)}</span></span>
           </div>
         </div>
       )}
 
       {overlay && (
         <div className="overlay-msg">
-          <MetaBadge tone={overlay.tone} doBlink>
-            {overlay.title}
-          </MetaBadge>
+          <MetaBadge tone={overlay.tone} doBlink>{overlay.title}</MetaBadge>
           {overlay.body}
           {overlay.action}
           {gameState === 'GAMEOVER' && (
             <div className="row gap-1" style={{ marginTop: 4 }}>
-              <button className="px-btn" onClick={onStart}>
-                ↻ REVANCHA [SPACE]
-              </button>
+              <button className="px-btn" onClick={onStart}>↻ REVANCHA [SPACE]</button>
               <button className="px-btn px-btn--primary" onClick={onRanking}>IR AL RANKING</button>
             </div>
           )}
