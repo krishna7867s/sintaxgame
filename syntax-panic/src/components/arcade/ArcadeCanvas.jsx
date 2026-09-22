@@ -170,7 +170,7 @@ function drawScene(ctx, s, t, frames, operatorId) {
   const px  = PLAYER_X - 28;
   const py  = s.y - DST_H;
 
-  // Seleccionar frame del spritesheet
+  // Seleccionar frame del spritesheet según el estado físico del jugador
   let srcX, srcY, srcW, srcH, dstW = DST_W, dstH = DST_H;
 
   if (s.attacking > 0) {
@@ -181,10 +181,20 @@ function drawScene(ctx, s, t, frames, operatorId) {
     // Fila 1, frame 2 = coger corazón (reacción de colecta)
     srcX = SACT_W; srcY = SACT_Y; srcW = SACT_W; srcH = SACT_H;
     dstW = 100; dstH = 90;
+  } else if (!s.grounded) {
+    // SALTO: animación de aire con las piernas recogidas.
+    // RUN[3] = tuck alto (subida), RUN[1] = piernas juntas (caída).
+    const seq = s.vy < 0 ? [3, 1] : [1, 3];
+    const jumpFrame = seq[Math.floor(t / 55) % 2];
+    srcX = SRUN_W * jumpFrame; srcY = SRUN_Y; srcW = SRUN_W; srcH = SRUN_H;
+  } else if (s.duck) {
+    // AGACHARSE: sprite comprimido para reflejar la hitbox reducida
+    srcX = SRUN_W * 3; srcY = SRUN_Y; srcW = SRUN_W; srcH = SRUN_H;
+    dstW = Math.round(DST_W * 0.9);
+    dstH = Math.round(DST_H * 0.62);
   } else {
-    // Fila 0 = carrera (6 frames) — frame fijo en salto
-    const frame = s.grounded ? runFrame : 3;
-    srcX = SRUN_W * frame; srcY = SRUN_Y; srcW = SRUN_W; srcH = SRUN_H;
+    // Fila 0 = carrera (6 frames)
+    srcX = SRUN_W * runFrame; srcY = SRUN_Y; srcW = SRUN_W; srcH = SRUN_H;
   }
 
   // Parpadeo de invencibilidad
