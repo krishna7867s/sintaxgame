@@ -1,0 +1,122 @@
+{
+  "operators": [
+    {
+      "id": "P1",
+      "name": "Chu Sangwoo",
+      "role": "LOGIC GOD",
+      "precision": "+10% CRIT",
+      "control_git": "STRICT",
+      "passive": "AUTO-FORMAT LINTER (INMUNIDAD A TYPOS)",
+      "avatar": "/images/avatars/sangwoo-reference.jpeg"
+    },
+    {
+      "id": "P2",
+      "name": "Jang Jaeyoung",
+      "role": "CREATIVE REBEL",
+      "velocidad_sprint": "+15% VEL",
+      "reflejo_visual": "AGILE",
+      "passive": "RED HOODIE DRIFT (DOBLE SALTO AÉREO)",
+      "avatar": "/images/avatars/jaeyoung-reference.jpeg"
+    },
+    {
+      "id": "P3",
+      "name": "Chibi Runner",
+      "role": "SPEED CODER",
+      "agilidad": "+20% VEL",
+      "evasion": "ALTA",
+      "passive": "QUICK ESCAPE (DODGE BUGS)",
+      "avatar": "/images/sprites/chibi-runner-reference.jpeg"
+    },
+    {
+      "id": "P4",
+      "name": "Chibi Actions",
+      "role": "MULTI-TASKER",
+      "eficiencia": "+15% EXP",
+      "focus": "STEADY",
+      "passive": "PARALLEL THREADS (MULTI-ACTION)",
+      "avatar": "/images/sprites/chibi-actions-reference.jpeg"
+    }
+  ],
+  "scores": [
+    {
+      "id": "1",
+      "rank": 1,
+      "player_identifier": "Sangwoo_God",
+      "user_tag": "CS_SENIOR_CS01",
+      "operator": "SANGWOO",
+      "level": "/nivel/2",
+      "bugs_fixed": 142,
+      "total_points": 98450
+    },
+    {
+      "id": "2",
+      "rank": 2,
+      "player_identifier": "Jaeyoung_Art",
+      "user_tag": "DESIGN_LEAD_09",
+      "operator": "JAEYOUNG",
+      "level": "/nivel/2",
+      "bugs_fixed": 119,
+      "total_points": 87120
+    },
+    {
+      "id": "3",
+      "rank": 3,
+      "player_identifier": "NullPointerCat",
+      "user_tag": "CS_JR_DEV_22",
+      "operator": "SANGWOO",
+      "level": "/nivel/1",
+      "bugs_fixed": 104,
+      "total_points": 72300
+    },
+    {
+      "id": "4",
+      "rank": 4,
+      "player_identifier": "RaceCondition",
+      "user_tag": "INFRA_TECH_07",
+      "operator": "JAEYOUNG",
+      "level": "/nivel/1",
+      "bugs_fixed": 88,
+      "total_points": 65410
+    },
+    {
+      "id": "5",
+      "rank": 5,
+      "player_identifier": "Yarn_Workspace",
+      "user_tag": "WEB_DEP_14",
+      "operator": "SANGWOO",
+      "level": "/nivel/2",
+      "bugs_fixed": 76,
+      "total_points": 58920
+    },
+    {
+      "id": "6",
+      "rank": 6,
+      "player_identifier": "Grok_Dev",
+      "user_tag": "FS_DEV_31",
+      "operator": "JAEYOUNG",
+      "level": "/nivel/1",
+      "bugs_fixed": 63,
+      "total_points": 51200
+    },
+    {
+      "id": "7",
+      "rank": 7,
+      "player_identifier": "MemoryLeak_X",
+      "user_tag": "BACKEND_03",
+      "operator": "SANGWOO",
+      "level": "/nivel/1",
+      "bugs_fixed": 55,
+      "total_points": 43480
+    },
+    {
+      "id": "8",
+      "rank": 8,
+      "player_identifier": "Kaomoji_Chan",
+      "user_tag": "FRONTEND_18",
+      "operator": "JAEYOUNG",
+      "level": "/nivel/2",
+      "bugs_fixed": 41,
+      "total_points": 36750
+    }
+  ]
+}

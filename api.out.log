@@ -1,0 +1,68 @@
+
+> syntax-panic@0.0.0 dev:api
+> json-server --watch db.json --port 3000 --delay 300
+
+
+  \{^_^}/ hi!
+
+  Loading db.json
+  Done
+
+  Resources
+  http://localhost:3000/operators
+  http://localhost:3000/scores
+
+  Home
+  http://localhost:3000
+
+  Type s + enter at any time to create a snapshot of the database
+  Watching...
+
+[0mGET / [33m404[0m 324.450 ms - 2[0m
+[0mGET /scores [32m200[0m 321.556 ms - 1702[0m
+[0mGET /operators [32m200[0m 344.321 ms - 491[0m
+  db.json has changed, reloading...
+
+  Loading db.json
+  db.json has changed, reloading...
+  db.json has changed, reloading...
+  Done
+
+  Resources
+  http://localhost:3000/operators
+  http://localhost:3000/scores
+
+  Home
+  http://localhost:3000
+
+[0mGET /operators [32m200[0m 505.402 ms - 972[0m
+[0mGET /scores [32m200[0m 480.299 ms - -[0m
+[0mGET /operators [36m304[0m 330.649 ms - -[0m
+[0mGET /scores [36m304[0m 361.021 ms - -[0m
+[0mGET /scores [36m304[0m 325.400 ms - -[0m
+[0mGET /operators [36m304[0m 325.273 ms - -[0m
+[0mGET /scores [36m304[0m 316.381 ms - -[0m
+[0mGET /operators [36m304[0m 317.892 ms - -[0m
+[0mGET /scores [36m304[0m 344.958 ms - -[0m
+[0mGET /operators [36m304[0m 347.587 ms - -[0m
+[0mGET /scores [36m304[0m 323.238 ms - -[0m
+[0mGET /operators [36m304[0m 327.131 ms - -[0m
+[0mGET /scores [36m304[0m 349.604 ms - -[0m
+[0mGET /operators [36m304[0m 353.627 ms - -[0m
+[0mGET /scores [36m304[0m 327.302 ms - -[0m
+[0mGET /operators [36m304[0m 328.497 ms - -[0m
+[0mGET /scores [36m304[0m 346.662 ms - -[0m
+[0mGET /operators [36m304[0m 349.095 ms - -[0m
+[0mGET /scores [36m304[0m 337.541 ms - -[0m
+[0mGET /operators [36m304[0m 337.579 ms - -[0m
+[0mGET /operators [32m200[0m 334.001 ms - 972[0m
+[0mGET /scores [36m304[0m 343.757 ms - -[0m
+[0mGET /operators [36m304[0m 343.740 ms - -[0m
+[0mGET /scores [36m304[0m 329.851 ms - -[0m
+[0mGET /operators [36m304[0m 333.410 ms - -[0m
+[0mGET /scores [36m304[0m 342.109 ms - -[0m
+[0mGET /operators [36m304[0m 345.304 ms - -[0m
+[0mGET /scores [36m304[0m 333.763 ms - -[0m
+[0mGET /operators [36m304[0m 331.660 ms - -[0m
+[0mGET /scores [36m304[0m 330.715 ms - -[0m
+[0mGET /operators [36m304[0m 330.234 ms - -[0m
